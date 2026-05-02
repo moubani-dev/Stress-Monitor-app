@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StressWatch — AI Stress Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c26;
+      --border: rgba(255,255,255,0.07);
+      --text: #f0ede6;
+      --muted: #888899;
+      --accent: #c8a96e;
+      --accent2: #7b6cde;
+      --green: #4ecfa4;
+      --red: #e05c5c;
+      --yellow: #e0b84a;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,15,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+    .logo span { color: var(--text); }
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem 2rem;
+    }
+    .hero-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.2rem;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* MAIN GRID */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+    @media (max-width: 820px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+    }
+    .card-label {
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+    }
+
+    /* STRESS GAUGE */
+    .gauge-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem 0;
+    }
+    .gauge-container {
+      position: relative;
+      width: 220px;
+      height: 120px;
+      margin-bottom: 1rem;
+    }
+    .gauge-svg { width: 100%; height: 100%; }
+    .gauge-value {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+    }
+    .gauge-number {
+      font-family: 'DM Serif Display', serif;
+      font-size: 3rem;
+      line-height: 1;
+      color: var(--text);
+    }
+    .gauge-unit {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .stress-label {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .stress-description {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.5;
+    }
+
+    /* METRICS GRID */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .metric-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+    }
+    .metric-label { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.4rem; }
+    .metric-value { font-family: 'DM Serif Display', serif; font-size: 1.8rem; line-height: 1; }
+    .metric-unit { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+    .metric-trend { font-size: 0.72rem; margin-top: 6px; }
+    .trend-up { color: var(--red); }
+    .trend-down { color: var(--green); }
+    .trend-flat { color: var(--muted); }
+
+    /* CHART */
+    .chart-section { margin-top: 1.5rem; }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .chart-title { font-size: 0.85rem; font-weight: 500; }
+    .chart-tabs { display: flex; gap: 4px; }
+    .chart-tab {
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-tab.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+    .chart-canvas-wrap { position: relative; height: 120px; }
+    canvas#lineChart { width: 100%; height: 100%; }
+
+    /* SIDEBAR */
+    .sidebar { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    /* AI ANALYSIS */
+    .ai-box {
+      background: linear-gradient(135deg, rgba(123,108,222,0.12), rgba(200,169,110,0.06));
+      border: 1px solid rgba(123,108,222,0.25);
+      border-radius: 16px;
+      padding: 1.4rem;
+    }
+    .ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+    .ai-icon {
+      width: 32px; height: 32px;
+      background: var(--accent2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+    }
+    .ai-title { font-size: 0.85rem; font-weight: 600; }
+    .ai-subtitle { font-size: 0.7rem; color: var(--muted); }
+    .ai-content {
+      font-size: 0.85rem;
+      color: #ccc;
+      line-height: 1.65;
+      min-height: 80px;
+    }
+    .ai-loading { color: var(--muted); font-style: italic; }
+    .typing-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--accent2);
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    .analyze-btn {
+      margin-top: 1rem;
+      width: 100%;
+      padding: 0.65rem;
+      background: var(--accent2);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .analyze-btn:hover { opacity: 0.88; }
+    .analyze-btn:active { transform: scale(0.98); }
+    .analyze-btn:disabled { opacity: 0.45; cursor: default; }
+
+    /* RECOMMENDATIONS */
+    .recs-list { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+    .rec-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: #c0c0d0;
+      line-height: 1.5;
+    }
+    .rec-icon {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* INPUT PANEL */
+    .input-section { margin-top: 1.5rem; }
+    .input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .input-group { display: flex; flex-direction: column; gap: 6px; }
+    .input-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .input-field {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.6rem 0.9rem;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: var(--accent2); }
+    .slider-row { margin-bottom: 1rem; }
+    .slider-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .slider { width: 100%; accent-color: var(--accent2); }
+    .submit-btn {
+      width: 100%;
+      padding: 0.7rem;
+      background: var(--accent);
+      color: #0a0a0f;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .submit-btn:hover { opacity: 0.88; }
+    .submit-btn:active { transform: scale(0.98); }
+
+    /* HISTORY */
+    .history-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      background: var(--surface2);
+      border-radius: 10px;
+      font-size: 0.8rem;
+    }
+    .history-time { color: var(--muted); }
+    .history-score { font-weight: 600; font-family: 'DM Serif Display', serif; font-size: 1rem; }
+    .badge {
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 500;
+    }
+    .badge-low { background: rgba(78,207,164,0.15); color: var(--green); }
+    .badge-mid { background: rgba(224,184,74,0.15); color: var(--yellow); }
+    .badge-high { background: rgba(224,92,92,0.15); color: var(--red); }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.78rem;
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Stress<span>Watch</span></div>
+  <div class="nav-status">
+    <div class="dot"></div>
+    AI Monitor Active
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-label">AI-Powered Wellness</div>
+  <h1>Your Stress,<br><em>Understood.</em></h1>
+  <p>Enter your biometric data and let our AI analyze your stress patterns in real time.</p>
+</div>
+
+<div class="main-grid">
+
+  <!-- LEFT COLUMN -->
+  <div>
+    <div class="card">
+      <div class="card-label">Current Stress Level</div>
+      <div class="gauge-wrap">
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 220 120" id="gaugeSvg">
+            <defs>
+              <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#4ecfa4"/>
+                <stop offset="50%" stop-color="#e0b84a"/>
+                <stop offset="100%" stop-color="#e05c5c"/>
+              </linearGradient>
+            </defs>
+            <!-- background arc -->
+            <path d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="#1c1c26" stroke-width="14" stroke-linecap="round"/>
+            <!-- colored arc -->
+            <path id="gaugeArc" d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="url(#arcGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="200"/>
+            <!-- needle -->
+            <line id="needle" x1="110" y1="110" x2="110" y2="30" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" transform="rotate(-90, 110, 110)"/>
+            <circle cx="110" cy="110" r="6" fill="var(--text)"/>
+          </svg>
+          <div class="gauge-value">
+            <div class="gauge-number" id="gaugeNumber">--</div>
+            <div class="gauge-unit">/ 100</div>
+          </div>
+        </div>
+        <div class="stress-label" id="stressLabel">Log Your Data</div>
+        <div class="stress-description" id="stressDesc">Enter your biometrics below to get your personalized stress score.</div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Heart Rate</div>
+          <div class="metric-value" id="hrVal">--</div>
+          <div class="metric-unit">bpm</div>
+          <div class="metric-trend" id="hrTrend">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">HRV</div>
+          <div class="metric-value" id="hrvVal">--</div>
+          <div class="metric-unit">ms</div>
+          <div class="metric-trend" id="hrvTrend">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Sleep</div>
+          <div class="metric-value" id="sleepVal">--</div>
+          <div class="metric-unit">hrs</div>
+          <div class="metric-trend" id="sleepTrend">—</div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="chart-section">
+        <div class="chart-header">
+          <span class="chart-title">Stress History (24h)</span>
+          <div class="chart-tabs">
+            <button class="chart-tab active">24h</button>
+            <button class="chart-tab">7d</button>
+            <button class="chart-tab">30d</button>
+          </div>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+
+      <!-- INPUT SECTION -->
+      <div class="input-section">
+        <div class="card-label" style="margin-top:1.2rem;">Log Biometrics</div>
+        <div class="input-row">
+          <div class="input-group">
+            <label class="input-label">Heart Rate (bpm)</label>
+            <input class="input-field" type="number" id="hrInput" placeholder="e.g. 72" min="40" max="200"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">HRV (ms)</label>
+            <input class="input-field" type="number" id="hrvInput" placeholder="e.g. 55" min="10" max="150"/>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-group">
+            <label class="input-label">Sleep (hrs)</label>
+            <input class="input-field" type="number" id="sleepInput" placeholder="e.g. 7" min="0" max="12" step="0.5"/>
+          </div>
+          <div class="input-group">
+            <label class="input-label">Cortisol (μg/dL)</label>
+            <input class="input-field" type="number" id="cortisolInput" placeholder="e.g. 15" min="5" max="50"/>
+          </div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="input-label">Perceived Stress</span>
+            <span class="input-label" id="perceivedOut">5 / 10</span>
+          </div>
+          <input type="range" class="slider" id="perceivedStress" min="1" max="10" value="5"/>
+        </div>
+        <button class="submit-btn" id="submitBtn" onclick="analyzeStress()">Analyze My Stress</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN / SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- AI ANALYSIS -->
+    <div class="ai-box">
+      <div class="ai-header">
+        <div class="ai-icon">✦</div>
+        <div>
+          <div class="ai-title">AI Analysis</div>
+          <div class="ai-subtitle">Powered by Claude</div>
+        </div>
+      </div>
+      <div class="ai-content" id="aiContent">
+        <span class="ai-loading">Submit your biometrics to receive a personalized AI analysis of your stress levels and health patterns.</span>
+      </div>
+      <button class="analyze-btn" id="analyzeBtn" onclick="getAIAnalysis()" disabled>
+        ✦ Get AI Insights
+      </button>
+    </div>
+
+    <!-- RECOMMENDATIONS -->
+    <div class="card" id="recsCard">
+      <div class="card-label">Recommendations</div>
+      <ul class="recs-list" id="recsList">
+        <li class="rec-item">
+          <div class="rec-icon" style="background:rgba(78,207,164,0.1);">🌿</div>
+          <span>Log your biometrics to get personalized recommendations.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="card">
+      <div class="card-label">Recent Entries</div>
+      <ul class="history-list" id="historyList">
+        <li style="font-size:0.8rem; color:var(--muted); text-align:center; padding:1rem 0;">No entries yet</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  StressWatch &mdash; AI Stress Monitor &nbsp;|&nbsp;
+  <a href="#">Privacy Policy</a> &nbsp;|&nbsp;
+  Not a medical device. For wellness purposes only.
+</footer>
+
+<script>
+  /* ── SLIDER ── */
+  const slider = document.getElementById('perceivedStress');
+  const percOut = document.getElementById('perceivedOut');
+  slider.addEventListener('input', () => { percOut.textContent = slider.value + ' / 10'; });
+
+  /* ── CHART TABS ── */
+  document.querySelectorAll('.chart-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderChart(tab.textContent.trim());
+    });
+  });
+
+  /* ── MINI LINE CHART ── */
+  const historyData = { entries: [] };
+  function renderChart(period) {
+    const canvas = document.getElementById('lineChart');
+    const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+    canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    const W = canvas.offsetWidth, H = canvas.offsetHeight;
+    ctx.clearRect(0, 0, W, H);
+
+    let points;
+    if (historyData.entries.length > 1) {
+      points = historyData.entries.map(e => e.score);
+    } else {
+      // demo data
+      points = [30, 45, 38, 55, 62, 48, 70, 58, 42, 65, 50, 38];
+    }
+
+    const min = 0, max = 100;
+    const padX = 10, padY = 12;
+    const stepX = (W - padX * 2) / (points.length - 1);
+
+    const toY = v => H - padY - ((v - min) / (max - min)) * (H - padY * 2);
+
+    // gradient fill
+    ctx.beginPath();
+    points.forEach((v, i) => {
+      const x = padX + i * stepX;
+      const y = toY(v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo(padX + (points.length - 1) * stepX, H);
+    ctx.lineTo(padX, H);
+    ctx.closePath();
+    const grd = ctx.createLinearGradient(0, 0, 0, H);
+    grd.addColorStop(0, 'rgba(123,108,222,0.35)');
+    grd.addColorStop(1, 'rgba(123,108,222,0)');
+    ctx.fillStyle = grd;
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    points.forEach((v, i) => {
+      const x = padX + i * stepX;
+      const y = toY(v);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#7b6cde';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // dots
+    if (historyData.entries.length > 0) {
+      points.forEach((v, i) => {
+        const x = padX + i * stepX;
+        const y = toY(v);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#7b6cde';
+        ctx.fill();
+      });
+    }
+  }
+
+  window.addEventListener('resize', () => renderChart('24h'));
+  setTimeout(() => renderChart('24h'), 100);
+
+  /* ── GAUGE ── */
+  function setGauge(score) {
+    const total = 283;
+    const offset = total - (score / 100) * total;
+    document.getElementById('gaugeArc').setAttribute('stroke-dashoffset', offset);
+    document.getElementById('gaugeNumber').textContent = Math.round(score);
+
+    const angle = -90 + (score / 100) * 180;
+    document.getElementById('needle').setAttribute('transform', `rotate(${angle}, 110, 110)`);
+
+    // color needle
+    let color = '#4ecfa4';
+    if (score > 65) color = '#e05c5c';
+    else if (score > 35) color = '#e0b84a';
+    document.getElementById('needle').setAttribute('stroke', color);
+    document.getElementById('gaugeNumber').style.color = color;
+
+    const labels = ['Low Stress', 'Mild Stress', 'Moderate Stress', 'High Stress', 'Very High Stress'];
+    const descs = [
+      'Your stress levels look great. Keep up your healthy habits!',
+      'Some mild stress detected. Consider a short break.',
+      'Moderate stress levels. Try breathing exercises or a walk.',
+      'High stress detected. Prioritize rest and relaxation.',
+      'Very high stress. Consider speaking to a health professional.'
+    ];
+    const idx = Math.min(4, Math.floor(score / 20));
+    document.getElementById('stressLabel').textContent = labels[idx];
+    document.getElementById('stressDesc').textContent = descs[idx];
+    document.getElementById('stressLabel').style.color = color;
+  }
+
+  /* ── COMPUTE SCORE ── */
+  function computeScore(hr, hrv, sleep, cortisol, perceived) {
+    let score = 0;
+    // Heart rate contribution (resting normal ~60-80)
+    if (hr > 100) score += 25;
+    else if (hr > 85) score += 15;
+    else if (hr < 50) score += 10;
+    else score += 5;
+    // HRV (higher is better)
+    if (hrv < 20) score += 25;
+    else if (hrv < 40) score += 15;
+    else if (hrv < 60) score += 8;
+    else score += 2;
+    // Sleep (7-9 optimal)
+    if (sleep < 5) score += 20;
+    else if (sleep < 6) score += 12;
+    else if (sleep > 9) score += 5;
+    else score += 2;
+    // Cortisol (normal 6-23 μg/dL morning)
+    if (cortisol > 30) score += 15;
+    else if (cortisol > 20) score += 8;
+    else score += 2;
+    // Perceived stress (scaled 0-15)
+    score += ((perceived - 1) / 9) * 15;
+    return Math.min(100, Math.max(0, score));
+  }
+
+  /* ── ANALYZE ── */
+  function analyzeStress() {
+    const hr = parseFloat(document.getElementById('hrInput').value);
+    const hrv = parseFloat(document.getElementById('hrvInput').value);
+    const sleep = parseFloat(document.getElementById('sleepInput').value);
+    const cortisol = parseFloat(document.getElementById('cortisolInput').value);
+    const perceived = parseInt(document.getElementById('perceivedStress').value);
+
+    if (!hr || !hrv || !sleep || !cortisol) {
+      alert('Please fill in all biometric fields.');
+      return;
+    }
+
+    const score = computeScore(hr, hrv, sleep, cortisol, perceived);
+    setGauge(score);
+
+    // update metric cards
+    document.getElementById('hrVal').textContent = Math.round(hr);
+    document.getElementById('hrvVal').textContent = Math.round(hrv);
+    document.getElementById('sleepVal').textContent = sleep.toFixed(1);
+
+    document.getElementById('hrTrend').innerHTML = hr > 85 ? '<span class="trend-up">↑ Elevated</span>' : '<span class="trend-down">✓ Normal</span>';
+    document.getElementById('hrvTrend').innerHTML = hrv < 40 ? '<span class="trend-up">↓ Low</span>' : '<span class="trend-down">✓ Good</span>';
+    document.getElementById('sleepTrend').innerHTML = sleep < 6 ? '<span class="trend-up">↓ Insufficient</span>' : '<span class="trend-down">✓ Adequate</span>';
+
+    // history
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    historyData.entries.push({ score, time: timeStr });
+    if (historyData.entries.length > 6) historyData.entries.shift();
+    renderHistory();
+    renderChart('24h');
+
+    // recommendations
+    renderRecs(score, hr, hrv, sleep, cortisol);
+
+    // enable AI button
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('aiContent').innerHTML = '<span class="ai-loading">Your data is ready. Click <b>Get AI Insights</b> for a detailed analysis.</span>';
+
+    // Store for AI context
+    window.latestData = { hr, hrv, sleep, cortisol, perceived, score };
+  }
+
+  /* ── RENDER HISTORY ── */
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (historyData.entries.length === 0) return;
+    list.innerHTML = historyData.entries.slice().reverse().map(e => {
+      let cls = 'badge-low', label = 'Low';
+      if (e.score > 65) { cls = 'badge-high'; label = 'High'; }
+      else if (e.score > 35) { cls = 'badge-mid'; label = 'Moderate'; }
+      return `<li class="history-item">
+        <span class="history-time">${e.time}</span>
+        <span class="history-score" style="color:${e.score>65?'var(--red)':e.score>35?'var(--yellow)':'var(--green)'}">${Math.round(e.score)}</span>
+        <span class="badge ${cls}">${label}</span>
+      </li>`;
+    }).join('');
+  }
+
+  /* ── RECOMMENDATIONS ── */
+  function renderRecs(score, hr, hrv, sleep, cortisol) {
+    const recs = [];
+    if (sleep < 6) recs.push({ icon: '😴', bg: 'rgba(123,108,222,0.12)', text: 'Prioritize 7-9 hours of sleep. Poor sleep is a major stress amplifier.' });
+    if (hrv < 40) recs.push({ icon: '💨', bg: 'rgba(78,207,164,0.1)', text: 'Practice box breathing (4s inhale, 4s hold, 4s exhale) to improve HRV.' });
+    if (hr > 85) recs.push({ icon: '🧘', bg: 'rgba(224,184,74,0.1)', text: 'Try a 10-minute mindfulness session to lower your resting heart rate.' });
+    if (cortisol > 22) recs.push({ icon: '🌿', bg: 'rgba(78,207,164,0.1)', text: 'Reduce caffeine and consider adaptogens like ashwagandha to lower cortisol.' });
+    if (score > 60) recs.push({ icon: '🚶', bg: 'rgba(200,169,110,0.1)', text: 'A 20-minute outdoor walk can reduce cortisol by up to 12%.' });
+    if (recs.length === 0) recs.push({ icon: '🌟', bg: 'rgba(78,207,164,0.1)', text: 'Your metrics look great! Keep maintaining your healthy lifestyle.' });
+
+    document.getElementById('recsList').innerHTML = recs.map(r =>
+      `<li class="rec-item">
+        <div class="rec-icon" style="background:${r.bg};">${r.icon}</div>
+        <span>${r.text}</span>
+      </li>`
+    ).join('');
+  }
+
+  /* ── AI ANALYSIS via Claude API ── */
+  async function getAIAnalysis() {
+    const d = window.latestData;
+    if (!d) return;
+
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+
+    document.getElementById('aiContent').innerHTML = `
+      <span class="ai-loading">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        &nbsp; Analyzing your biometrics...
+      </span>`;
+
+    const prompt = `You are a wellness AI analyzing stress biometrics. Keep your response under 100 words, warm and practical.
+
+Data:
+- Heart Rate: ${d.hr} bpm
+- HRV: ${d.hrv} ms
+- Sleep: ${d.sleep} hours
+- Cortisol: ${d.cortisol} μg/dL
+- Perceived Stress: ${d.perceived}/10
+- Computed Stress Score: ${Math.round(d.score)}/100
+
+Give a 2-3 sentence personalized wellness insight and one concrete action they can take today. Be conversational, not clinical.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.find(b => b.type === 'text')?.text || 'Unable to get analysis.';
+      document.getElementById('aiContent').textContent = text;
+    } catch (err) {
+      document.getElementById('aiContent').innerHTML = '<span style="color:var(--red)">Could not reach AI. Please try again.</span>';
+    }
+
+    btn.disabled = false;
+    btn.textContent = '✦ Refresh Insights';
+  }
+</script>
+</body>
+</html>
